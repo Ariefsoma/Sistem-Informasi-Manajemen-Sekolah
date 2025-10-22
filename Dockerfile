@@ -1,31 +1,34 @@
-# Gunakan image resmi PHP + Apache
 FROM php:8.2-apache
 
-# Install dependensi Laravel + SQLite
+# Install dependencies
 RUN apt-get update && apt-get install -y \
-    git zip unzip libzip-dev libpng-dev libonig-dev libxml2-dev curl \
-    sqlite3 libsqlite3-dev \
+    git zip unzip libzip-dev libpng-dev libonig-dev libxml2-dev curl sqlite3 \
     && docker-php-ext-install pdo pdo_mysql pdo_sqlite zip gd
 
-# Aktifkan mod_rewrite untuk Laravel route
+# Enable Apache modules
 RUN a2enmod rewrite
 
-# Copy semua file ke folder kerja
-WORKDIR /var/www/html
+# Copy project
 COPY . /var/www/html
 
-# Set permission storage dan bootstrap
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
-    && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
+# Set proper working directory
+WORKDIR /var/www/html
 
-# Ganti DocumentRoot Apache ke folder public
-RUN sed -i 's#/var/www/html#/var/www/html/public#g' /etc/apache2/sites-available/000-default.conf
+# Apache config
+COPY ./apache/laravel.conf /etc/apache2/sites-available/000-default.conf
 
-# Set environment variable default (opsional)
-ENV APACHE_DOCUMENT_ROOT /var/www/html/public
+# Permissions
+RUN chown -R www-data:www-data /var/www/html && chmod -R 755 /var/www/html
 
-# Expose port 80
+# Composer install
+RUN composer install --no-dev --optimize-autoloader
+
+# Laravel setup
+RUN php artisan key:generate || true
+RUN php artisan migrate --force || true
+RUN php artisan storage:link || true
+RUN php artisan config:clear || true
+RUN php artisan route:clear || true
+
 EXPOSE 80
-
-# Jalankan Apache
 CMD ["apache2-foreground"]
