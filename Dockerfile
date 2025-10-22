@@ -1,31 +1,31 @@
+# Gunakan image dasar PHP dengan Apache
 FROM php:8.2-apache
 
-# Install dependencies
+# Install ekstensi dan dependency yang dibutuhkan Laravel
 RUN apt-get update && apt-get install -y \
     git zip unzip libzip-dev libpng-dev libxml2-dev libsqlite3-dev curl \
     && docker-php-ext-install pdo_mysql pdo_sqlite zip gd
 
+# Aktifkan mod_rewrite untuk Laravel route
+RUN a2enmod rewrite
+
 # Install Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# Copy project files
-COPY . /var/www/html
-
+# Set working directory
 WORKDIR /var/www/html
 
-# Set permissions
+# Copy semua file project Laravel ke dalam container
+COPY . /var/www/html
+
+# Set permission untuk folder penting Laravel
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
-# Install PHP dependencies
+# Install dependency PHP Laravel (tanpa dev)
 RUN composer install --no-dev --optimize-autoloader
 
-# Generate app key & migrate database
-RUN php artisan key:generate
-RUN php artisan migrate --force || true
-RUN php artisan storage:link || true
+# Generate APP_KEY (abaikan error jika sudah ada)
+RUN php artisan key:generate || true
 
-# Expose the port
-EXPOSE 8000
-
-# Start Laravel
-CMD php artisan serve --host=0.0.0.0 --port=8000
+# Jalankan migration database (abaikan error jika sudah ada)
+RUN php
