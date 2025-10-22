@@ -18,14 +18,23 @@ WORKDIR /var/www/html
 # Copy semua file project Laravel ke dalam container
 COPY . /var/www/html
 
-# Set permission untuk folder penting Laravel
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+# Set permissions
+RUN chown -R www-data:www-data /var/www/html && chmod -R 755 /var/www/html
 
-# Install dependency PHP Laravel (tanpa dev)
+# Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader
 
-# Generate APP_KEY (abaikan error jika sudah ada)
+# Generate app key & migrate database
 RUN php artisan key:generate || true
+RUN php artisan migrate --force || true
+RUN php artisan storage:link || true
 
-# Jalankan migration database (abaikan error jika sudah ada)
-RUN php
+# Copy Apache config
+COPY ./apache/laravel.conf /etc/apache2/sites-available/000-default.conf
+
+# Expose port
+EXPOSE 80
+
+# Start Apache
+CMD ["apache2-foreground"]
+
