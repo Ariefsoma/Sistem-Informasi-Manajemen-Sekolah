@@ -1,46 +1,28 @@
-# Gunakan versi PHP dengan Apache & Debian Bullseye (lebih stabil)
-FROM php:8.2-apache-bullseye
+FROM php:8.2-apache
 
-# Install dependencies sistem
 RUN apt-get update && apt-get install -y \
-    git \
-    unzip \
-    zip \
-    curl \
-    libpng-dev \
-    libzip-dev \
-    libonig-dev \
-    libxml2-dev \
-    pkg-config \
-    libsqlite3-dev \
-    sqlite3 \
-    && docker-php-ext-install pdo pdo_mysql pdo_sqlite zip gd \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+    libpng-dev libjpeg-dev libfreetype6-dev zip git unzip libonig-dev libxml2-dev \
+    && docker-php-ext-install pdo pdo_mysql mbstring exif pcntl bcmath gd
 
-# Atur direktori kerja
+COPY . /var/www/html
 WORKDIR /var/www/html
 
-# Copy source code ke container
-COPY . .
+# Ubah document root ke folder public
+RUN sed -i 's|/var/www/html|/var/www/html/public|g' /etc/apache2/sites-available/000-default.conf
 
-# Install composer dari official image
-COPY --from=composer:2.6 /usr/bin/composer /usr/bin/composer
-
-# Install dependency Laravel
-RUN composer install --no-dev --optimize-autoloader --no-interaction
-
-# Set permission agar storage bisa ditulis
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
-
-# Aktifkan mod_rewrite untuk Laravel routing
+# Aktifkan mod_rewrite
 RUN a2enmod rewrite
-RUN echo "<Directory /var/www/html>\n\
+
+# Tambahkan konfigurasi Laravel
+RUN echo 'ServerName localhost\n\
+<Directory /var/www/html/public>\n\
     AllowOverride All\n\
-</Directory>" > /etc/apache2/conf-available/laravel.conf \
-    && a2enconf laravel
+    Require all granted\n\
+    DirectoryIndex index.php\n\
+</Directory>' >> /etc/apache2/apache2.conf
 
-# Expose port 80
+# Pastikan .htaccess terbaca
+RUN chmod 644 /var/www/html/public/.htaccess
+
 EXPOSE 80
-
-# Jalankan Apache
 CMD ["apache2-foreground"]
